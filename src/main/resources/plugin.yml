@@ -1,23 +1,27 @@
-name: HavocOrders
+name: HavocAuction
 version: '${project.version}'
-main: net.eclipse.havocorders.HavocOrders
+main: net.eclipse.havocauction.HavocAuction
 api-version: '1.21'
 author: Eclipse
-description: Player-driven buy orders using the 1.21.6+ Dialog API, with Vault economy and sell-all support.
+description: Player auction house using the 1.21.6+ Dialog API, with Vault economy.
 softdepend: [Vault, PlaceholderAPI]
 commands:
-  orders:
-    description: Open the orders menu
-    usage: /orders [reload]
-    aliases: [order, havocorders]
-  toggleorderalerts:
-    description: Toggle order delivery notifications
-    usage: /toggleorderalerts
-    aliases: [orderalerts]
+  auction:
+    description: Open the auction house
+    usage: /ah [sell <price>|reload|import]
+    aliases: [ah, havocauction]
+  toggleauctionalerts:
+    description: Toggle auction sale notifications
+    usage: /toggleauctionalerts
+    aliases: [ahalerts]
+  togglefastauction:
+    description: Toggle auction confirmation screens
+    usage: /togglefastauction
+    aliases: [fastauction]
 permissions:
-  havocorders.use:
-    description: Allows using /orders
+  havocauction.use:
+    description: Allows using /ah
     default: true
-  havocorders.admin:
-    description: Allows /orders reload and bypassing order limits
+  havocauction.admin:
+    description: Reload, import, bypass listing limits, cancel any listing
     default: op
