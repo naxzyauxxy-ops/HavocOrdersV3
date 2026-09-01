@@ -146,6 +146,13 @@ ITEM-RESTRICTIONS:
     - "DEBUG_STICK"
     - "KNOWLEDGE_BOOK"
 
+# Text substituted into the *_status placeholders. These render inside whatever menu
+# plugin reads them, so match its format: MiniMessage tags here, or &a / &c if it
+# expects legacy colour codes, or plain "ON" / "OFF" for no colour at all.
+PLACEHOLDERS:
+  ENABLED-TEXT: "<green>ON"
+  DISABLED-TEXT: "<red>OFF"
+
 MESSAGES:
   PREFIX: ""
   NO-PERMISSION: "&#f40d0dYou don't have permission to do that."

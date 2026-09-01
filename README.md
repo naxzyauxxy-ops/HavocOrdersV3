@@ -139,6 +139,32 @@ DELIVER:
 `{progress}`, `{percent}`, `{held}`, `{deliverable}`, `{payout}` and `{full_payout}` are
 available in its body lines and tooltips.
 
+## External settings menus (PlaceholderAPI)
+
+Registers the `havocorders` expansion when PlaceholderAPI is installed, plus a standalone
+toggle command, so a settings menu can drive the alert preference without knowing anything
+about this plugin's dialogs.
+
+| Placeholder | Value |
+| --- | --- |
+| `%havocorders_alerts_status%` | Styled ON / OFF |
+| `%havocorders_alerts_raw%` | `true` / `false` |
+| `%havocorders_active%` | Live orders |
+| `%havocorders_collectable%` | Items waiting to collect |
+| `%havocorders_escrow%` | Money tied up in outstanding orders |
+
+Command: `/toggleorderalerts` (alias `/orderalerts`).
+
+The ON/OFF text is config-driven, since it renders inside whatever menu plugin reads it:
+
+```yaml
+PLACEHOLDERS:
+  ENABLED-TEXT: "<green>ON"
+  DISABLED-TEXT: "<red>OFF"
+```
+
+Use `&a` / `&c` instead if your menu expects legacy colour codes, or plain `ON` / `OFF`.
+
 ## Importing from the original DonutOrders
 
 Drop the old plugin's `orders.db` into `plugins/HavocOrders/` as `import.db` and start the

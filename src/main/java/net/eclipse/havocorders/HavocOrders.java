@@ -1,6 +1,8 @@
 package net.eclipse.havocorders;
 
 import net.eclipse.havocorders.command.OrdersCommand;
+import net.eclipse.havocorders.command.ToggleAlertsCommand;
+import net.eclipse.havocorders.integration.OrdersPlaceholders;
 import net.eclipse.havocorders.economy.EconomyHook;
 import net.eclipse.havocorders.economy.SellPrices;
 import net.eclipse.havocorders.manager.DropJob;
@@ -100,6 +102,11 @@ public final class HavocOrders extends JavaPlugin {
             command.setTabCompleter(executor);
         }
 
+        PluginCommand toggle = getCommand("toggleorderalerts");
+        if (toggle != null) toggle.setExecutor(new ToggleAlertsCommand(this));
+
+        registerPlaceholders();
+
         long expiryTicks = Math.max(20L, getConfig().getInt("SETTINGS.EXPIRY-CHECK-SECONDS", 60) * 20L);
         getServer().getScheduler().runTaskTimer(this, () -> orderManager.tickExpiry(), expiryTicks, expiryTicks);
 
@@ -111,6 +118,23 @@ public final class HavocOrders extends JavaPlugin {
         }, saveTicks, saveTicks);
 
         getLogger().info("HavocOrders enabled. Dialogs require Paper/Purpur 1.21.7+ and a 1.21.6+ client.");
+    }
+
+    /** PlaceholderAPI is optional; skip quietly when it is not installed. */
+    private void registerPlaceholders() {
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") == null) return;
+        try {
+            new OrdersPlaceholders(this).register();
+            getLogger().info("Registered PlaceholderAPI expansion 'havocorders'.");
+        } catch (Throwable ex) {
+            getLogger().warning("Could not register placeholders: " + ex.getMessage());
+        }
+    }
+
+    /** ON/OFF text used by the placeholders, styled in config. */
+    public String statusText(boolean enabled) {
+        return getConfig().getString("PLACEHOLDERS." + (enabled ? "ENABLED-TEXT" : "DISABLED-TEXT"),
+                enabled ? "ON" : "OFF");
     }
 
     /** Picks up a legacy orders.db dropped into the plugin folder. */
