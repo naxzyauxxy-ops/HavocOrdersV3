@@ -146,12 +146,21 @@ ITEM-RESTRICTIONS:
     - "DEBUG_STICK"
     - "KNOWLEDGE_BOOK"
 
-# Text substituted into the *_status placeholders. These render inside whatever menu
-# plugin reads them, so match its format: MiniMessage tags here, or &a / &c if it
-# expects legacy colour codes, or plain "ON" / "OFF" for no colour at all.
+# Text substituted into the *_status placeholders: green ON, red OFF.
+#
+# This string renders inside whatever menu plugin reads the placeholder, not here, so it
+# has to match that plugin's colour format. MiniMessage is the default because a settings
+# menu using <item:...> tags is MiniMessage-based. If the toggles show a literal
+# "<green>ON", comment these two out and uncomment one of the alternatives below.
 PLACEHOLDERS:
   ENABLED-TEXT: "<green>ON"
   DISABLED-TEXT: "<red>OFF"
+  # Legacy colour codes:
+  # ENABLED-TEXT: "&aON"
+  # DISABLED-TEXT: "&cOFF"
+  # Already-translated section signs:
+  # ENABLED-TEXT: "\u00a7aON"
+  # DISABLED-TEXT: "\u00a7cOFF"
 
 MESSAGES:
   PREFIX: ""
