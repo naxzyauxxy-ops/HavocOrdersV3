@@ -44,7 +44,7 @@ public class ManageOrderScreen extends Screen {
             return List.of(DialogBody.plainMessage(Text.component(plugin.message("ORDER_DELETED"))));
         }
         List<DialogBody> body = new ArrayList<>();
-        body.add(DialogBody.item(order.getItemCopy(1)));
+        body.add(itemBody(order.getItemCopy(1)));
         body.addAll(Dialogs.body(lines("BODY"), Placeholders.of(order)));
         return body;
     }

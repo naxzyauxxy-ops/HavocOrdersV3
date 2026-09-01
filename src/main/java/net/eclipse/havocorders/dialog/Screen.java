@@ -55,6 +55,11 @@ public abstract class Screen {
         return Math.max(1, columns);
     }
 
+    /** Item preview body at the configured size. */
+    protected DialogBody itemBody(org.bukkit.inventory.ItemStack stack) {
+        return Dialogs.item(stack, plugin.getConfig().getInt("SETTINGS.DIALOG.ITEM-SIZE", 48));
+    }
+
     /** Button width in pixels. The API caps this at 1024. */
     protected int width() {
         int width = plugin.getConfig().getInt("SETTINGS.DIALOG.BUTTON-WIDTH", 200);

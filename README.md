@@ -66,6 +66,7 @@ SETTINGS:
   DIALOG:
     COLUMNS: 3        # grid width
     BUTTON-WIDTH: 200 # pixels per button, 1-1024
+    ITEM-SIZE: 48     # item preview size, 1-256 (vanilla default is 16)
   ORDERS-PER-PAGE: 21
   ITEMS-PER-PAGE: 27
   COLLECT-PER-PAGE: 15

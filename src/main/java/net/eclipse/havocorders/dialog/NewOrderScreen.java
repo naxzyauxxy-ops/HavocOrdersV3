@@ -67,7 +67,7 @@ public class NewOrderScreen extends Screen {
     protected List<DialogBody> body() {
         List<DialogBody> body = new ArrayList<>();
         ItemStack draft = session.getDraftItem();
-        if (draft != null) body.add(DialogBody.item(draft.clone()));
+        if (draft != null) body.add(itemBody(draft.clone()));
         body.addAll(Dialogs.body(lines("BODY"), placeholders()));
         return body;
     }
