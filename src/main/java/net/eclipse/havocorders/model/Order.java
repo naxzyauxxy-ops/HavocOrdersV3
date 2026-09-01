@@ -27,8 +27,16 @@ public class Order {
     private long expiresAt;
     private OrderStatus status;
 
+    /**
+     * True when this plugin took the order's value up front and therefore owes a refund
+     * on cancel or expiry. Imported orders can be marked false: another plugin already
+     * holds that money, and paying it out again would create currency.
+     */
+    private final boolean escrowed;
+
     public Order(UUID id, UUID owner, String ownerName, String encodedItem, int amount, double unitPrice,
-                 int delivered, int collected, double paid, long createdAt, long expiresAt, OrderStatus status) {
+                 int delivered, int collected, double paid, long createdAt, long expiresAt,
+                 OrderStatus status, boolean escrowed) {
         this.id = id;
         this.owner = owner;
         this.ownerName = ownerName;
@@ -41,13 +49,14 @@ public class Order {
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
         this.status = status;
+        this.escrowed = escrowed;
     }
 
     public static Order create(UUID owner, String ownerName, ItemStack item, int amount,
                                double unitPrice, long expiryMillis) {
         long now = System.currentTimeMillis();
         return new Order(UUID.randomUUID(), owner, ownerName, ItemSerializer.encode(item),
-                amount, unitPrice, 0, 0, 0.0D, now, now + expiryMillis, OrderStatus.ACTIVE);
+                amount, unitPrice, 0, 0, 0.0D, now, now + expiryMillis, OrderStatus.ACTIVE, true);
     }
 
     public UUID getId() {
@@ -136,6 +145,10 @@ public class Order {
 
     public double getPaid() {
         return paid;
+    }
+
+    public boolean isEscrowed() {
+        return escrowed;
     }
 
     public double getRefund() {

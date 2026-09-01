@@ -16,8 +16,20 @@ import java.util.Map;
 
 public class MyOrdersScreen extends Screen {
 
+    /**
+     * Order lists are unbounded now, and title/body/buttons/exit each need the list.
+     * Computed once per draw instead of four times.
+     */
+    private List<Order> cached;
+
     public MyOrdersScreen(HavocOrders plugin, Player player) {
         super(plugin, player);
+    }
+
+    @Override
+    public void show() {
+        cached = null;
+        super.show();
     }
 
     @Override
@@ -30,7 +42,8 @@ public class MyOrdersScreen extends Screen {
     }
 
     private List<Order> results() {
-        return plugin.orders().ordersOf(player.getUniqueId());
+        if (cached == null) cached = plugin.orders().ordersOf(player.getUniqueId());
+        return cached;
     }
 
     private Map<String, String> screenPlaceholders(List<Order> results) {
@@ -41,6 +54,7 @@ public class MyOrdersScreen extends Screen {
         map.put("escrow", NumberUtil.money(plugin.orders().escrowHeld(player.getUniqueId())));
         map.put("page", String.valueOf(Math.min(session.getMyOrdersPage() + 1, pages)));
         map.put("pages", String.valueOf(pages));
+        map.put("alerts", plugin.profiles().alertsEnabled(player.getUniqueId()) ? "ON" : "OFF");
         return map;
     }
 
@@ -102,6 +116,12 @@ public class MyOrdersScreen extends Screen {
         buttons.add(configButton("COLLECT", screen, (view, audience) -> {
             click();
             new CollectScreen(plugin, player).show();
+        }));
+        buttons.add(configButton("ALERTS", screen, (view, audience) -> {
+            boolean enabled = plugin.profiles().toggleAlerts(player.getUniqueId());
+            click();
+            tell(plugin.message(enabled ? "ALERTS-ON" : "ALERTS-OFF"));
+            show();
         }));
         return buttons;
     }

@@ -24,7 +24,8 @@ SETTINGS:
   MIN-ITEM-AMOUNT: 1
   # Bulk orders are fine - the plugin never materialises this many item stacks at once.
   MAX-ITEM-AMOUNT: 1000000
-  MAX-ORDERS-PER-PLAYER: 10
+  # Active orders one player may hold at once. 0 = unlimited.
+  MAX-ORDERS-PER-PLAYER: 0
   EXPIRE-DAYS: 7
   # Charge the full order value up front and hold it in escrow.
   # Deliverers are paid out of that escrow; unspent escrow is refunded on cancel/expiry.
@@ -94,6 +95,40 @@ SELL:
     NETHER_STAR: 2000.0
     SHULKER_SHELL: 150.0
 
+# Migration from the original DonutOrders plugin.
+# Drop its orders.db into this folder as the FILE below and start the server, or run
+# /orders import. Importing is idempotent: legacy ids map to fixed ids, so re-running
+# skips anything already present.
+#
+# The importer never pays anyone and never drops loot. Delivered and paid figures come
+# across as history only, because the old plugin already moved that money - refunding it
+# again here would create currency out of nothing. Uncollected items stay owed and appear
+# in the collect screen as normal.
+#
+# Remove the old plugin before importing, so both are not running against one economy.
+IMPORT:
+  ENABLED: true
+  FILE: "import.db"
+  # Legacy dates are stored as text.
+  DATE-FORMAT: "dd/MM/yyyy HH:mm:ss"
+  # Blank uses the server's own timezone. Set this if the old server ran elsewhere.
+  TIMEZONE: ""
+  EXPIRY:
+    # EXTEND: orders that already expired get a fresh window and stay live.
+    # KEEP:   they import as expired. Loot is still collectable, but no refund is
+    #         issued, because the old plugin was responsible for that.
+    MODE: EXTEND
+    EXTEND-DAYS: 7
+  # The original plugin charged order value up front and refunded undelivered items on
+  # cancel, so by default imported orders are treated as escrowed and will refund normally.
+  # Set this to false if your old setup did NOT hold that money - otherwise cancelling an
+  # imported order pays out currency nobody ever paid in.
+  ESCROW-ALREADY-HELD: true
+  # Carries over each player's "notify me on delivery" choice.
+  IMPORT-PROFILES: true
+  # Renames the file to *.imported afterwards so a restart does not re-read it.
+  RENAME-WHEN-DONE: true
+
 ITEM-RESTRICTIONS:
   BLOCKED-ITEMS:
     - "COMMAND_BLOCK"
@@ -143,6 +178,8 @@ MESSAGES:
   SELL-DISABLED: "&#f40d0dSelling is disabled on this server."
   SELL-NOTHING: "&#f40d0dNone of your collected items can be sold."
   DROPPED-ALL: "&#f40d0dDropped {amount} items at your feet."
+  ALERTS-ON: "&#f40d0dYou will be told when someone delivers to your orders."
+  ALERTS-OFF: "&#f40d0dDelivery notifications turned off."
   ORDER_DELETED: "&#f40d0dThis order has been cancelled and no longer exists."
   ORDER_NO_LONGER_VALID: "&#f40d0dThis order is no longer accepting deliveries."
   ORDER_FULL: "&#f40d0dThis order is already complete."

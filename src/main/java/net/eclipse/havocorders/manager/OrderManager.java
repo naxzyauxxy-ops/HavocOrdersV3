@@ -78,6 +78,18 @@ public class OrderManager {
         plugin.getLogger().info("Loaded " + orders.size() + " orders.");
     }
 
+    /**
+     * Adds an order that already exists elsewhere (a migration), without charging anyone.
+     * Returns false if an order with that id is already loaded.
+     */
+    public boolean importOrder(Order order) {
+        if (orders.containsKey(order.getId())) return false;
+        index(order);
+        dirty.add(order.getId());
+        touch();
+        return true;
+    }
+
     private void index(Order order) {
         orders.put(order.getId(), order);
         byOwner.computeIfAbsent(order.getOwner(), key -> ConcurrentHashMap.newKeySet()).add(order.getId());
@@ -222,8 +234,10 @@ public class OrderManager {
                     Map.of("max", NumberUtil.money(maxPrice))));
         }
 
-        int maxOrders = plugin.getConfig().getInt("SETTINGS.MAX-ORDERS-PER-PLAYER", 10);
-        if (!player.hasPermission("havocorders.admin") && activeCount(player.getUniqueId()) >= maxOrders) {
+        // 0 means unlimited.
+        int maxOrders = plugin.getConfig().getInt("SETTINGS.MAX-ORDERS-PER-PLAYER", 0);
+        if (maxOrders > 0 && !player.hasPermission("havocorders.admin")
+                && activeCount(player.getUniqueId()) >= maxOrders) {
             return Result.fail(Text.apply(plugin.message("MAX_ORDERS_REACHED"),
                     Map.of("max", String.valueOf(maxOrders))));
         }
@@ -323,7 +337,7 @@ public class OrderManager {
         player.sendMessage(Text.component(Text.apply(plugin.message("DELIVERED"), placeholders)));
 
         Player owner = Bukkit.getPlayer(current.getOwner());
-        if (owner != null && owner.isOnline()) {
+        if (owner != null && owner.isOnline() && plugin.profiles().alertsEnabled(current.getOwner())) {
             owner.sendMessage(Text.component(Text.apply(plugin.message("DELIVERY_RECEIVED"), placeholders)));
         }
         return deliverable;
@@ -518,7 +532,7 @@ public class OrderManager {
         double refund = current.getRefund();
         current.setStatus(OrderStatus.CANCELLED);
 
-        if (plugin.getConfig().getBoolean("SETTINGS.ESCROW", true) && refund > 0) {
+        if (current.isEscrowed() && plugin.getConfig().getBoolean("SETTINGS.ESCROW", true) && refund > 0) {
             if (!plugin.economy().deposit(player, refund)) {
                 current.setStatus(OrderStatus.ACTIVE);
                 return Result.fail(plugin.message("REFUND-ERROR"));
@@ -543,7 +557,8 @@ public class OrderManager {
             if (order.getStatus() == OrderStatus.ACTIVE && now >= order.getExpiresAt()) {
                 double refund = order.getRefund();
                 order.setStatus(OrderStatus.EXPIRED);
-                if (plugin.getConfig().getBoolean("SETTINGS.ESCROW", true) && refund > 0) {
+                if (order.isEscrowed() && plugin.getConfig().getBoolean("SETTINGS.ESCROW", true)
+                        && refund > 0) {
                     plugin.economy().deposit(Bukkit.getOfflinePlayer(order.getOwner()), refund);
                 }
                 Player owner = Bukkit.getPlayer(order.getOwner());

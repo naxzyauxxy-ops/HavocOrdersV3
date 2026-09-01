@@ -27,8 +27,17 @@ import java.util.Set;
  */
 public class CollectScreen extends Screen {
 
+    /** Computed once per draw; see MyOrdersScreen for why. */
+    private List<Order> cached;
+
     public CollectScreen(HavocOrders plugin, Player player) {
         super(plugin, player);
+    }
+
+    @Override
+    public void show() {
+        cached = null;
+        super.show();
     }
 
     @Override
@@ -45,7 +54,8 @@ public class CollectScreen extends Screen {
     }
 
     private List<Order> results() {
-        return plugin.orders().collectable(player.getUniqueId());
+        if (cached == null) cached = plugin.orders().collectable(player.getUniqueId());
+        return cached;
     }
 
     private Map<String, String> screenPlaceholders(List<Order> results) {

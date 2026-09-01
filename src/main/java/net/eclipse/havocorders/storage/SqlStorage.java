@@ -25,6 +25,7 @@ import java.util.logging.Level;
 public class SqlStorage {
 
     private static final String TABLE = "havoc_orders";
+    private static final String PROFILE_TABLE = "havoc_profiles";
 
     private final HavocOrders plugin;
     private final boolean mysql;
@@ -87,10 +88,22 @@ public class SqlStorage {
                 + "paid DOUBLE NOT NULL,"
                 + "created BIGINT NOT NULL,"
                 + "expires BIGINT NOT NULL,"
-                + "status VARCHAR(16) NOT NULL"
+                + "status VARCHAR(16) NOT NULL,"
+                + "escrowed BOOLEAN NOT NULL DEFAULT 1"
                 + ")";
         try (Statement statement = getConnection().createStatement()) {
             statement.executeUpdate(sql);
+            try {
+                // For tables created before the escrowed column existed.
+                statement.executeUpdate("ALTER TABLE " + TABLE
+                        + " ADD COLUMN escrowed BOOLEAN NOT NULL DEFAULT 1");
+            } catch (SQLException ignored) {
+                // column already present
+            }
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + PROFILE_TABLE + " ("
+                    + "uuid VARCHAR(36) NOT NULL PRIMARY KEY,"
+                    + "alerts BOOLEAN NOT NULL"
+                    + ")");
             try {
                 // MySQL has no "IF NOT EXISTS" for indexes, so this may throw on a second start.
                 statement.executeUpdate((mysql ? "CREATE INDEX " : "CREATE INDEX IF NOT EXISTS ")
@@ -120,7 +133,8 @@ public class SqlStorage {
                             results.getDouble("paid"),
                             results.getLong("created"),
                             results.getLong("expires"),
-                            OrderStatus.valueOf(results.getString("status"))
+                            OrderStatus.valueOf(results.getString("status")),
+                            results.getBoolean("escrowed")
                     ));
                 } catch (IllegalArgumentException ex) {
                     plugin.getLogger().warning("Skipping malformed order row: " + ex.getMessage());
@@ -139,10 +153,10 @@ public class SqlStorage {
     public void saveAll(Collection<Order> orders) {
         if (orders.isEmpty()) return;
         String sql = mysql
-                ? "REPLACE INTO " + TABLE + " (id,owner,owner_name,item,amount,unit_price,delivered,collected,paid,created,expires,status)"
-                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
-                : "INSERT OR REPLACE INTO " + TABLE + " (id,owner,owner_name,item,amount,unit_price,delivered,collected,paid,created,expires,status)"
-                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+                ? "REPLACE INTO " + TABLE + " (id,owner,owner_name,item,amount,unit_price,delivered,collected,paid,created,expires,status,escrowed)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                : "INSERT OR REPLACE INTO " + TABLE + " (id,owner,owner_name,item,amount,unit_price,delivered,collected,paid,created,expires,status,escrowed)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try {
             Connection conn = getConnection();
             boolean previousAutoCommit = conn.getAutoCommit();
@@ -161,6 +175,7 @@ public class SqlStorage {
                     statement.setLong(10, order.getCreatedAt());
                     statement.setLong(11, order.getExpiresAt());
                     statement.setString(12, order.getStatus().name());
+                    statement.setBoolean(13, order.isEscrowed());
                     statement.addBatch();
                 }
                 statement.executeBatch();
@@ -178,6 +193,49 @@ public class SqlStorage {
             statement.executeUpdate();
         } catch (SQLException ex) {
             plugin.getLogger().log(Level.SEVERE, "Failed to delete order " + id, ex);
+        }
+    }
+
+    // ------------------------------------------------------------------ profiles
+
+    public java.util.Map<UUID, Boolean> loadProfiles() {
+        java.util.Map<UUID, Boolean> profiles = new java.util.HashMap<>();
+        try (PreparedStatement statement =
+                     getConnection().prepareStatement("SELECT uuid, alerts FROM " + PROFILE_TABLE);
+             ResultSet results = statement.executeQuery()) {
+            while (results.next()) {
+                try {
+                    profiles.put(UUID.fromString(results.getString("uuid")), results.getBoolean("alerts"));
+                } catch (IllegalArgumentException ignored) {
+                    // malformed uuid
+                }
+            }
+        } catch (SQLException ex) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load player preferences", ex);
+        }
+        return profiles;
+    }
+
+    public void saveProfiles(java.util.Map<UUID, Boolean> profiles) {
+        if (profiles.isEmpty()) return;
+        String sql = (mysql ? "REPLACE INTO " : "INSERT OR REPLACE INTO ")
+                + PROFILE_TABLE + " (uuid, alerts) VALUES (?,?)";
+        try {
+            Connection conn = getConnection();
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement statement = conn.prepareStatement(sql)) {
+                for (java.util.Map.Entry<UUID, Boolean> entry : profiles.entrySet()) {
+                    statement.setString(1, entry.getKey().toString());
+                    statement.setBoolean(2, entry.getValue());
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            conn.commit();
+            conn.setAutoCommit(previousAutoCommit);
+        } catch (SQLException ex) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save player preferences", ex);
         }
     }
 

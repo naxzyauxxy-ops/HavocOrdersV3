@@ -101,11 +101,19 @@ public class OrdersScreen extends Screen {
         List<ActionButton> buttons = new ArrayList<>();
 
         for (Order order : slice(results, session.getPage(), perPage())) {
+            boolean mine = order.getOwner().equals(player.getUniqueId());
             Map<String, String> placeholders = Placeholders.of(order);
             placeholders.put("held", NumberUtil.count(plugin.orders().countMatching(player, order)));
-            buttons.add(configButton("ORDER", placeholders, (view, audience) -> {
+
+            // Your own orders can't be delivered to, so send them somewhere useful
+            // instead of bouncing them off an error.
+            buttons.add(configButton(mine ? "OWN-ORDER" : "ORDER", placeholders, (view, audience) -> {
                 click();
-                new DeliverScreen(plugin, player, order.getId()).show();
+                if (mine) {
+                    new ManageOrderScreen(plugin, player, order.getId()).show();
+                } else {
+                    new DeliverScreen(plugin, player, order.getId()).show();
+                }
             }));
         }
 

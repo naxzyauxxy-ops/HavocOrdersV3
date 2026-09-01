@@ -2,6 +2,7 @@ package net.eclipse.havocorders.command;
 
 import net.eclipse.havocorders.HavocOrders;
 import net.eclipse.havocorders.dialog.OrdersScreen;
+import net.eclipse.havocorders.storage.LegacyImporter;
 import net.eclipse.havocorders.util.Text;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -10,6 +11,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +42,31 @@ public class OrdersCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("import")) {
+            if (!sender.hasPermission("havocorders.admin")) {
+                sender.sendMessage(Text.component(plugin.message("NO-PERMISSION")));
+                return true;
+            }
+            File file = args.length > 1
+                    ? new File(plugin.getDataFolder(), args[1])
+                    : plugin.importer().defaultFile();
+            if (!file.isFile()) {
+                sender.sendMessage(Text.component("&cNo such file: " + file.getPath()));
+                return true;
+            }
+            try {
+                LegacyImporter.Report report = plugin.importer().importFrom(file);
+                for (String line : plugin.importer().summary(report)) {
+                    sender.sendMessage(Text.component("&#f40d0d" + line));
+                }
+                sender.sendMessage(Text.component("&7No money was moved and no loot was dropped."));
+            } catch (Exception ex) {
+                sender.sendMessage(Text.component("&cImport failed: " + ex.getMessage()
+                        + " - see the console. Nothing was changed."));
+            }
+            return true;
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Text.component(plugin.message("PLAYERS-ONLY")));
             return true;
@@ -63,6 +90,7 @@ public class OrdersCommand implements CommandExecutor, TabCompleter {
         List<String> options = new ArrayList<>();
         if (args.length == 1 && sender.hasPermission("havocorders.admin")) {
             options.add("reload");
+            options.add("import");
             options.removeIf(option -> !option.startsWith(args[0].toLowerCase(Locale.ROOT)));
         }
         return options;

@@ -7,8 +7,10 @@ import net.eclipse.havocorders.manager.DropJob;
 import net.eclipse.havocorders.manager.InventoryScanner;
 import net.eclipse.havocorders.manager.ItemCatalogue;
 import net.eclipse.havocorders.manager.OrderManager;
+import net.eclipse.havocorders.manager.Profiles;
 import net.eclipse.havocorders.manager.SessionManager;
 import net.eclipse.havocorders.model.SortOption;
+import net.eclipse.havocorders.storage.LegacyImporter;
 import net.eclipse.havocorders.storage.SqlStorage;
 import net.eclipse.havocorders.util.Category;
 import net.eclipse.havocorders.util.NumberUtil;
@@ -44,6 +46,8 @@ public final class HavocOrders extends JavaPlugin {
     private ItemCatalogue catalogue;
     private SessionManager sessions;
     private InventoryScanner inventories;
+    private Profiles profiles;
+    private LegacyImporter importer;
 
     private final Set<Material> blocked = new HashSet<>();
 
@@ -75,6 +79,12 @@ public final class HavocOrders extends JavaPlugin {
         orderManager = new OrderManager(this, storage);
         orderManager.loadAll();
 
+        profiles = new Profiles(this, storage);
+        profiles.loadAll();
+
+        importer = new LegacyImporter(this);
+        runAutoImport();
+
         catalogue = new ItemCatalogue(this);
         catalogue.build();
 
@@ -95,13 +105,35 @@ public final class HavocOrders extends JavaPlugin {
 
         // Single batched writer. Nothing else touches the database at runtime.
         long saveTicks = Math.max(20L, getConfig().getInt("SETTINGS.SAVE-INTERVAL-SECONDS", 30) * 20L);
-        getServer().getScheduler().runTaskTimerAsynchronously(this, orderManager::flush, saveTicks, saveTicks);
+        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+            orderManager.flush();
+            profiles.flush();
+        }, saveTicks, saveTicks);
 
         getLogger().info("HavocOrders enabled. Dialogs require Paper/Purpur 1.21.7+ and a 1.21.6+ client.");
     }
 
+    /** Picks up a legacy orders.db dropped into the plugin folder. */
+    private void runAutoImport() {
+        if (!getConfig().getBoolean("IMPORT.ENABLED", true)) return;
+        File file = importer.defaultFile();
+        if (!file.isFile()) return;
+
+        getLogger().info("Found " + file.getName() + ", importing legacy orders...");
+        try {
+            LegacyImporter.Report report = importer.importFrom(file);
+            for (String line : importer.summary(report)) getLogger().info(line);
+            if (getConfig().getBoolean("IMPORT.RENAME-WHEN-DONE", true)) {
+                importer.markDone(file);
+            }
+        } catch (Exception ex) {
+            getLogger().log(Level.SEVERE, "Legacy import failed; nothing was changed.", ex);
+        }
+    }
+
     @Override
     public void onDisable() {
+        if (profiles != null) profiles.flush();
         if (orderManager != null) {
             orderManager.flush();
             storage.saveAll(orderManager.snapshot());
@@ -184,6 +216,14 @@ public final class HavocOrders extends JavaPlugin {
 
     public InventoryScanner inventories() {
         return inventories;
+    }
+
+    public Profiles profiles() {
+        return profiles;
+    }
+
+    public LegacyImporter importer() {
+        return importer;
     }
 
     // ------------------------------------------------------------------ scheduling

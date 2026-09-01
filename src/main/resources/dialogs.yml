@@ -49,6 +49,19 @@ DIALOGS:
           - "&7You are carrying &f{held}"
           - ""
           - "&8{expires} until it expires"
+      OWN-ORDER:
+        LABEL: "&#f40d0d{amount_left}x {material} &8- &7ʏᴏᴜʀѕ"
+        TOOLTIP:
+          - "&#f40d0dYour Order"
+          - "&f{material}"
+          - "&#f40d0d${unit_price} &feach"
+          - ""
+          - "&7{current}/{max} &8Delivered"
+          - "&7${paid}/${max_paid} &8Paid"
+          - "&7{collectable} &8waiting to collect"
+          - ""
+          - "&fClick to manage this order"
+          - "&8{expires} until it expires"
       PREVIOUS:
         LABEL: "&#f40d0d< ᴘʀᴇᴠɪᴏᴜѕ"
         TOOLTIP: [ "&7Page {previous} of {pages}" ]
@@ -164,6 +177,11 @@ DIALOGS:
       COLLECT:
         LABEL: "&#f40d0dᴄᴏʟʟᴇᴄᴛ ʟᴏᴏᴛ &7({collectable})"
         TOOLTIP: [ "&7Collect, drop or sell what was delivered" ]
+      ALERTS:
+        LABEL: "&#f40d0dᴀʟᴇʀᴛѕ: &f{alerts}"
+        TOOLTIP:
+          - "&7Tell you in chat when someone"
+          - "&7delivers to one of your orders"
       PREVIOUS:
         LABEL: "&#f40d0d< ᴘʀᴇᴠɪᴏᴜѕ"
         TOOLTIP: [ ]

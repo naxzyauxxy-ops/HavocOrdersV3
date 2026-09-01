@@ -19,8 +19,8 @@ instantly, and the owner collects, drops, or sells the loot.
 | --- | --- |
 | Orders | The board: paged, sortable, filterable, searchable |
 | Deliver | Progress bar, what you're carrying, payout preview, quick-amount buttons |
-| Your Orders | Your active orders, escrow total, loot counter |
-| Manage Order | Per-order detail, collect or cancel |
+| Your Orders | Your active orders, escrow total, loot counter, delivery-alert toggle |
+| Manage Order | Per-order detail, collect or cancel — also where your own orders on the board lead |
 | New Order | Item + amount + price, all in one dialog |
 | Item Picker | Every orderable item, paged with filter and search |
 | Enchant Picker | Every enchantment and level, for enchanted books |
@@ -138,6 +138,63 @@ DELIVER:
 
 `{progress}`, `{percent}`, `{held}`, `{deliverable}`, `{payout}` and `{full_payout}` are
 available in its body lines and tooltips.
+
+## Importing from the original DonutOrders
+
+Drop the old plugin's `orders.db` into `plugins/HavocOrders/` as `import.db` and start the
+server, or run `/orders import [file]`. The old schema (`orders` + `profiles`) is read
+directly, including its `BukkitObjectOutputStream` item blobs.
+
+What comes across:
+
+| Legacy | Becomes |
+| --- | --- |
+| `id` (8 chars) | A fixed UUID derived from it, so re-importing skips duplicates |
+| `deliver` / `deliverName` | Order owner |
+| `maxAmount` / `currentAmount` / `collectedAmount` | Amount, delivered, collected |
+| `unitItemPrice` / `currentPaid` | Price and payout history |
+| `serializedItem` | The exact item, falling back to `material` if the blob won't read |
+| `createdDate` / `expireDate` | Timestamps (`DATE-FORMAT`, `TIMEZONE`) |
+| `profiles.orderAlerts` | Each player's delivery-notification choice |
+
+**The importer never moves money and never drops loot.** Delivered and paid figures come
+across as history only, because the old plugin already handled those payments. Uncollected
+items stay owed and appear in the collect screen as normal.
+
+Two settings deserve a decision before you run it:
+
+```yaml
+IMPORT:
+  ESCROW-ALREADY-HELD: true
+  EXPIRY:
+    MODE: EXTEND      # or KEEP
+    EXTEND-DAYS: 7
+```
+
+`ESCROW-ALREADY-HELD` decides whether cancelling an imported order pays a refund. The
+original plugin charged order value up front and refunded undelivered items, so `true` is
+correct for it — the money exists and the player is owed it. Set it to `false` if your old
+setup did not hold that money, otherwise cancelling imported orders mints currency. Orders
+carry this flag individually, so imported and native orders can coexist safely.
+
+`EXPIRY.MODE` handles orders that expired while the old plugin was down. `EXTEND` gives
+them a fresh window and keeps them live. `KEEP` imports them as expired — loot is still
+collectable, but no refund is issued, since the old plugin owned that decision.
+
+Remove the old plugin before importing so the two are not running against one economy.
+The file is renamed to `*.imported` afterwards so a restart doesn't re-read it.
+
+## Order limits
+
+`MAX-ORDERS-PER-PLAYER` defaults to **0, meaning unlimited**. Set it to a number to cap
+active orders per player; admins with `havocorders.admin` bypass any cap.
+
+```yaml
+SETTINGS:
+  MAX-ORDERS-PER-PLAYER: 0
+```
+
+Escrow still applies per order, so a player's real limit is their balance.
 
 ## Bulk orders
 
