@@ -1,0 +1,224 @@
+# HavocOrders
+
+Player-driven buy orders for **Paper / Purpur 1.21.7+**, built entirely on Minecraft's
+native **Dialog API**. No chest GUIs anywhere — every screen is a real dialog window.
+
+Players post orders ("I'll pay $12 each for 512 diamonds"), anyone can deliver and get paid
+instantly, and the owner collects, drops, or sells the loot.
+
+## Requirements
+
+- **Server:** Paper or Purpur **1.21.7 or newer** (that's when Paper shipped the dialog API)
+- **Client:** Minecraft **1.21.6 or newer** — dialogs do not render on older clients
+- **Vault** plus an economy provider (EssentialsX Economy, CMI, ...)
+- JDK 21 to build
+
+## Screens
+
+| Dialog | What it does |
+| --- | --- |
+| Orders | The board: paged, sortable, filterable, searchable |
+| Deliver | Progress bar, what you're carrying, payout preview, quick-amount buttons |
+| Your Orders | Your active orders, escrow total, loot counter |
+| Manage Order | Per-order detail, collect or cancel |
+| New Order | Item + amount + price, all in one dialog |
+| Item Picker | Every orderable item, paged with filter and search |
+| Enchant Picker | Every enchantment and level, for enchanted books |
+| Collect | Your loot: collect, drop, or sell |
+| Confirm dialogs | Cancel order, sell all, drop all |
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `/orders` | Open the board — everything else is reachable from inside |
+| `/orders reload` | Reload config and dialogs |
+
+Sub-commands for your orders, collecting, and selling were removed; those are buttons now.
+
+Permissions: `havocorders.use` (default true), `havocorders.admin` (default op).
+
+## Number shorthand
+
+Every amount and price field accepts shorthand, in input and output:
+
+- `1k` = 1,000 · `2.5k` = 2,500 · `1m` = 1,000,000 · `3b`, `1t`, `1q`
+- `$` signs, commas and underscores are ignored, so `$1,250` works
+- Amount fields also accept `all`, `max`, and `half`
+
+Display abbreviates the same way (`1.23m`). Turn that off with
+`SETTINGS.ABBREVIATE-NUMBERS: false` — input shorthand keeps working either way.
+
+## Search privacy
+
+Search uses the dialog's own text field. The value goes straight from your client to the
+server with the button click: it never enters chat, so it does not appear in the chat box,
+in other players' screenshots, or in chat-logging plugins. This is the same privacy a sign
+would give you, without the fake-block packet hacks.
+
+## Dialog size
+
+Multi-action dialogs lay their buttons out in a grid, and the API defaults to **2 columns**,
+which is why the window looked cramped. Size is now configurable:
+
+```yaml
+SETTINGS:
+  DIALOG:
+    COLUMNS: 3        # grid width
+    BUTTON-WIDTH: 200 # pixels per button, 1-1024
+  ORDERS-PER-PAGE: 21
+  ITEMS-PER-PAGE: 27
+  COLLECT-PER-PAGE: 15
+```
+
+Roughly, window width is `COLUMNS x BUTTON-WIDTH`. Three 200px columns fills most of a
+normal-scale screen; push `BUTTON-WIDTH` toward 300 or `COLUMNS` to 4 if you run a low GUI
+scale. Any dialog can override the column count on its own with a `COLUMNS:` key in
+`dialogs.yml` — the deliver screen uses 2 because it is mostly text and inputs.
+
+Dialogs scroll, so the per-page counts are far higher than a chest GUI allowed: 21 orders
+per page in a 3-wide grid is seven rows at a glance.
+
+Back and Close now sit in the dialog's dedicated footer slot rather than taking up a grid
+cell, so the grid is all content.
+
+## Shulker support
+
+Deliveries read and pull from shulker boxes the player is carrying, so nobody has to
+unpack a box first. The deliver screen splits the count:
+
+```
+In your inventory: 128
+In your shulkers:  1,728
+```
+
+Loose stacks are taken first and shulker contents second, so boxes stay packed as long as
+possible. Emptied boxes are kept, never consumed.
+
+```yaml
+SETTINGS:
+  SHULKERS:
+    DELIVER-FROM-SHULKERS: true
+    CACHE-MILLIS: 1000
+```
+
+**Why the cache exists:** reading a shulker's contents deserialises its block state, which
+is not cheap, and the order board asks "how many do you have" once per visible order. With
+21 orders on screen and a few boxes in your inventory, an uncached implementation would
+unpack every box twenty-odd times per redraw. One scan now counts everything you carry and
+that snapshot is reused for a second. Anything that moves items invalidates it, and
+deliveries always re-scan before touching your inventory, so the cache can only ever make a
+displayed number a second stale — never the amount that actually moves.
+
+Note that a *filled* shulker is only matched by an identically filled one, because item
+matching compares full item data. Ordering "a shulker box" means an empty one.
+
+## The deliver screen
+
+The busiest screen, so it gets the most detail:
+
+- A progress bar and percentage for the order
+- How much is still wanted, and how much the order has paid out so far
+- How many matching items you are carrying, how many you can deliver right now, and
+  exactly what that pays
+- What filling the whole order would pay
+- A free-text amount field accepting `1k`, `2.5k`, `half`, `all`
+- **Quick-amount buttons** from `QUICK-AMOUNTS` in `dialogs.yml` (default 64 / 576 / 1728 —
+  a stack, nine stacks, a shulker). They only appear when you can actually deliver that
+  many, so the screen never shows a button that would fail.
+
+Set your own amounts per server:
+
+```yaml
+DELIVER:
+  COLUMNS: 3
+  QUICK-AMOUNTS: [ 64, 576, 1728 ]
+```
+
+`{progress}`, `{percent}`, `{held}`, `{deliverable}`, `{payout}` and `{full_payout}` are
+available in its body lines and tooltips.
+
+## Bulk orders
+
+Orders are built for volume. Defaults:
+
+| Setting | Default |
+| --- | --- |
+| `MAX-ITEM-AMOUNT` | 1,000,000 items per order |
+| `MAX-PRICE-AMOUNT` | 10,000,000 per item |
+| `MAX-ORDER-VALUE` | 1,000,000,000 total (`0` disables the check) |
+
+`MAX-ORDER-VALUE` is the one that matters: amount x price is what gets pulled from the
+player's balance up front, so the ceiling stops someone posting an order worth more than
+your economy can represent.
+
+Large orders never materialise as item stacks. Loot is tracked as a count against the
+order, the collect screen shows one entry per order rather than one per stack, and drops
+cut stacks off a counter as they are released. A million-item order costs the same memory
+as a one-item order.
+
+## Dropping loot
+
+The Collect dialog has three drop buttons:
+
+- **Drop Page** — the entries currently on screen
+- **Drop N Pages** — the next N pages from where you are (`SETTINGS.DROP.PAGE-BATCH`)
+- **Drop All** — everything, behind a confirmation dialog
+
+Stacks are generated as they are dropped, a few per tick (`MAX-STACKS-PER-TICK`, default
+24), so "Drop All" on a million items is a slow trickle rather than a frozen server.
+`MAX-TOTAL-STACKS` is an optional ceiling on one drop action (`0` = no limit). Book-keeping
+happens up front, so nothing is ever owed twice — and if you log out mid-drop, the
+remainder falls where you were standing instead of vanishing.
+
+Because collect entries are per order rather than per stack, the page buttons only matter
+if you have more waiting orders than `COLLECT-PER-PAGE`.
+
+## Performance
+
+- The full order set lives in memory; nothing queries the database during play.
+- Writes go into a dirty set flushed by **one** batched async transaction every 30s
+  (`SAVE-INTERVAL-SECONDS`), so a busy server doesn't spawn a thread per delivery.
+- Orders are indexed by owner, so "your orders" never scans the whole set.
+- The board caches its filtered, sorted result per player and rebuilds only when the order
+  set actually changed (a version counter) or the player changed a filter — a page turn is
+  a list slice.
+- Order quantity is a number, never a list of stacks, so bulk orders cost nothing extra.
+- The item picker is pre-bucketed by category with pre-lowercased names, so filtering is a
+  map lookup and searching is one pass over an already-narrowed list.
+- Dialog buttons use local click callbacks, so there is no global event handler firing for
+  every dialog click on the server.
+- The only repeating tasks are the expiry sweep (60s) and the save flush (30s).
+
+## Sell All
+
+`SELL.PRICES` sets the per-item value; anything missing falls back to `SELL.DEFAULT-PRICE`
+(`0` = not sellable, stays in the collect list). `SELL.MULTIPLIER` scales everything.
+
+## Config files
+
+- `config.yml` — database, economy, limits, sell prices, drop safety, messages
+- `dialogs.yml` — every title, body line, button label and tooltip, with `{placeholders}`
+  and hex colours (`&#f40d0d`)
+
+## Build
+
+```
+mvn clean package
+```
+
+Jar lands in `target/HavocOrders-1.0.0.jar`. CI is in `.github/workflows/build.yml`.
+
+## Layout
+
+```
+net.eclipse.havocorders
+├── HavocOrders            entry point, config, scheduling, spread-drop
+├── command/               /orders
+├── dialog/                Screen base, Dialogs helpers, one class per screen
+├── economy/               Vault hook, sell prices
+├── manager/               OrderManager, ItemCatalogue, Session, SessionManager
+├── model/                 Order, OrderStatus, SortOption
+├── storage/               SqlStorage (SQLite / MySQL, batched)
+└── util/                  Text, NumberUtil, ItemNames, Category, ...
+```

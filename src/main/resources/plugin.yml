@@ -1,0 +1,19 @@
+name: HavocOrders
+version: '${project.version}'
+main: net.eclipse.havocorders.HavocOrders
+api-version: '1.21'
+author: Eclipse
+description: Player-driven buy orders using the 1.21.6+ Dialog API, with Vault economy and sell-all support.
+softdepend: [Vault]
+commands:
+  orders:
+    description: Open the orders menu
+    usage: /orders [reload]
+    aliases: [order, havocorders]
+permissions:
+  havocorders.use:
+    description: Allows using /orders
+    default: true
+  havocorders.admin:
+    description: Allows /orders reload and bypassing order limits
+    default: op
